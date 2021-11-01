@@ -9,6 +9,8 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Run the simulation once with nCycles
+Here we set up the founder population of haplotypes using Markovian Coalescent Simulator (MaCS) and introduce parameters to the population using "SimParam()".
 ```{r}
 library(AlphaSimR)
 library(tidyverse)
