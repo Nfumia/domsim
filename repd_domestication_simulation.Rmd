@@ -55,19 +55,31 @@ tidySimOutput<-tibble(Cycle=0:nCycles,
          varG=map_dbl(Sims,~var(.@gv)))
 tidySimOutput
 ```
-Making A Kinship Matrix
+Making A Kinship Matrix & Using for Mixed Model
 ```{r}
 ped <- as.data.frame(SP$pedigree) #set dataframe
 ped <- ped[,-3]
 ped$id <- rownames(ped)
 distinct(ped)
 
-id <- ped[,3]
-mother <- ped[,1]
-father <- ped[,2]
+id <- as.numeric(ped[,3])
+mother <- as.numeric(ped[,1])
+father <- as.numeric(ped[,2])
 
 library(kinship2)
-A <- kinship2::kinship(id=id,dadid=father,momid=mother)*2
+K <- kinship2::kinship(id=id,dadid=father,momid=mother)*2
+
+Y <- as.data.frame(cbind(offspringPop@id,offspringPop@pheno))
+colnames(Y) <- c("id","trait")
+Y$trait <- as.numeric(Y$trait)
+
+ans <- mmer(trait~1,
+     random=~vs(id,Gu=K),
+     rcov=~units,
+     data=Y)
+
+summary(ans)
+
 ```
 
 
