@@ -73,6 +73,7 @@ Y <- as.data.frame(cbind(offspringPop@id,offspringPop@pheno))
 colnames(Y) <- c("id","trait")
 Y$trait <- as.numeric(Y$trait)
 
+library(sommer)
 ans <- mmer(trait~1,
      random=~vs(id,Gu=K),
      rcov=~units,

@@ -3,6 +3,12 @@ Domestication Syndrome Simulation
 Nathan Fumia
 10/31/2021
 
+## Run the simulation once with nCycles
+
+Here we set up the founder population of haplotypes using Markovian
+Coalescent Simulator (MaCS) and introduce parameters to the population
+using “SimParam()”.
+
 ``` r
 library(AlphaSimR)
 ```
@@ -75,19 +81,128 @@ tidySimOutput
 ```
 
     ## # A tibble: 11 x 4
-    ##    Cycle Sims      meanG   varG
-    ##    <int> <list>    <dbl>  <dbl>
-    ##  1     0 <Pop>  1.58e-16 1.01  
-    ##  2     1 <Pop>  1.58e+ 0 0.575 
-    ##  3     2 <Pop>  2.80e+ 0 0.893 
-    ##  4     3 <Pop>  4.29e+ 0 0.506 
-    ##  5     4 <Pop>  5.29e+ 0 0.285 
-    ##  6     5 <Pop>  5.87e+ 0 0.319 
-    ##  7     6 <Pop>  6.79e+ 0 0.417 
-    ##  8     7 <Pop>  7.78e+ 0 0.153 
-    ##  9     8 <Pop>  8.04e+ 0 0.111 
-    ## 10     9 <Pop>  8.43e+ 0 0.151 
-    ## 11    10 <Pop>  8.54e+ 0 0.0818
+    ##    Cycle Sims       meanG   varG
+    ##    <int> <list>     <dbl>  <dbl>
+    ##  1     0 <Pop>  -4.44e-17 1.01  
+    ##  2     1 <Pop>   1.60e+ 0 0.461 
+    ##  3     2 <Pop>   2.74e+ 0 0.406 
+    ##  4     3 <Pop>   3.66e+ 0 0.225 
+    ##  5     4 <Pop>   4.22e+ 0 0.215 
+    ##  6     5 <Pop>   4.98e+ 0 0.0797
+    ##  7     6 <Pop>   5.28e+ 0 0.0787
+    ##  8     7 <Pop>   5.53e+ 0 0.115 
+    ##  9     8 <Pop>   5.88e+ 0 0.0597
+    ## 10     9 <Pop>   6.20e+ 0 0.0415
+    ## 11    10 <Pop>   6.43e+ 0 0.0186
+
+Making A Kinship Matrix & Using for Mixed Model
+
+``` r
+ped <- as.data.frame(SP$pedigree) #set dataframe
+ped <- ped[,-3]
+ped$id <- rownames(ped)
+head(distinct(ped))
+```
+
+    ##   mother father id
+    ## 1      0      0  1
+    ## 2      0      0  2
+    ## 3      0      0  3
+    ## 4      0      0  4
+    ## 5      0      0  5
+    ## 6      0      0  6
+
+``` r
+id <- as.numeric(ped[,3])
+mother <- as.numeric(ped[,1])
+father <- as.numeric(ped[,2])
+
+library(kinship2)
+```
+
+    ## Loading required package: Matrix
+
+    ## 
+    ## Attaching package: 'Matrix'
+
+    ## The following objects are masked from 'package:tidyr':
+    ## 
+    ##     expand, pack, unpack
+
+    ## Loading required package: quadprog
+
+``` r
+K <- kinship2::kinship(id=id,dadid=father,momid=mother)*2
+
+Y <- as.data.frame(cbind(offspringPop@id,offspringPop@pheno))
+colnames(Y) <- c("id","trait")
+Y$trait <- as.numeric(Y$trait)
+
+library(sommer)
+```
+
+    ## Warning: package 'sommer' was built under R version 4.1.1
+
+    ## Loading required package: MASS
+
+    ## 
+    ## Attaching package: 'MASS'
+
+    ## The following object is masked from 'package:dplyr':
+    ## 
+    ##     select
+
+    ## Loading required package: lattice
+
+    ## Loading required package: crayon
+
+    ## 
+    ## Attaching package: 'crayon'
+
+    ## The following object is masked from 'package:ggplot2':
+    ## 
+    ##     %+%
+
+``` r
+ans <- mmer(trait~1,
+     random=~vs(id,Gu=K),
+     rcov=~units,
+     data=Y)
+```
+
+    ## Adding additional levels of Gu in the model matrix of 'id' 
+    ## iteration    LogLik     wall    cpu(sec)   restrained
+    ##     1      -49.5987   10:7:34      0           0
+    ##     2      -49.5378   10:7:34      0           0
+    ##     3      -49.5067   10:7:34      0           1
+    ##     4      -49.5   10:7:34      0           1
+    ##     5      -49.5   10:7:34      0           1
+
+``` r
+summary(ans)
+```
+
+    ## ============================================================
+    ##          Multivariate Linear Mixed Model fit by REML         
+    ## **********************  sommer 4.1  ********************** 
+    ## ============================================================
+    ##       logLik AIC      BIC Method Converge
+    ## Value  -49.5 101 103.6052     NR     TRUE
+    ## ============================================================
+    ## Variance-Covariance components:
+    ##                   VarComp VarCompSE Zratio Constraint
+    ## u:id.trait-trait   0.0000   0.17627  0.000   Positive
+    ## units.trait-trait  0.5024   0.08451  5.944   Positive
+    ## ============================================================
+    ## Fixed effects:
+    ##   Trait      Effect Estimate Std.Error t.value
+    ## 1 trait (Intercept)    6.292   0.07088   88.77
+    ## ============================================================
+    ## Groups and observations:
+    ##      trait
+    ## u:id  1100
+    ## ============================================================
+    ## Use the '$' sign to access results and parameters
 
 ``` r
 library(AlphaSimR)
@@ -167,6 +282,13 @@ library(patchwork)
 
     ## Warning: package 'patchwork' was built under R version 4.1.1
 
+    ## 
+    ## Attaching package: 'patchwork'
+
+    ## The following object is masked from 'package:MASS':
+    ## 
+    ##     area
+
 ``` r
 # Plot replicated simulation for clean plots
 meanGplot<-ggplot(simRepData,aes(x=cycle,y=simRepMeanG)) + geom_point() + geom_line() + geom_ribbon(aes(ymin=simRepMeanG-simRepMeanGsd,ymax=simRepMeanG+simRepMeanGsd),fill="grey",alpha=0.5) 
@@ -174,7 +296,7 @@ varGplot<-ggplot(simRepData,aes(x=cycle,y=simRepVarG)) + geom_point() + geom_lin
 meanGplot | varGplot
 ```
 
-![](repd_domestication_simulation_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](repd_domestication_simulation_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
 ## R Markdown
 
