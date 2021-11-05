@@ -60,7 +60,7 @@ Making A Kinship Matrix & Using for Mixed Model
 ped <- as.data.frame(SP$pedigree) #set dataframe
 ped <- ped[,-3]
 ped$id <- rownames(ped)
-distinct(ped)
+head(distinct(ped))
 
 id <- as.numeric(ped[,3])
 mother <- as.numeric(ped[,1])
@@ -73,12 +73,16 @@ Y <- as.data.frame(cbind(offspringPop@id,offspringPop@pheno))
 colnames(Y) <- c("id","trait")
 Y$trait <- as.numeric(Y$trait)
 
+library(sommer)
 ans <- mmer(trait~1,
-     random=~vs(id,Gu=K),
+     random=~vs(id,Gu=K)+Rowf,
      rcov=~units,
      data=Y)
 
-summary(ans)
+
+summary(ans)$varcomp
+
+
 
 ```
 
