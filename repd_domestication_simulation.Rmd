@@ -75,7 +75,7 @@ Y$trait <- as.numeric(Y$trait)
 
 library(sommer)
 ans <- mmer(trait~1,
-     random=~vs(id,Gu=K)+Rowf,
+     random=~vs(id,Gu=K),
      rcov=~units,
      data=Y)
 

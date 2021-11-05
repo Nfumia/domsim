@@ -83,17 +83,17 @@ tidySimOutput
     ## # A tibble: 11 x 4
     ##    Cycle Sims       meanG   varG
     ##    <int> <list>     <dbl>  <dbl>
-    ##  1     0 <Pop>  -4.44e-17 1.01  
-    ##  2     1 <Pop>   1.60e+ 0 0.461 
-    ##  3     2 <Pop>   2.74e+ 0 0.406 
-    ##  4     3 <Pop>   3.66e+ 0 0.225 
-    ##  5     4 <Pop>   4.22e+ 0 0.215 
-    ##  6     5 <Pop>   4.98e+ 0 0.0797
-    ##  7     6 <Pop>   5.28e+ 0 0.0787
-    ##  8     7 <Pop>   5.53e+ 0 0.115 
-    ##  9     8 <Pop>   5.88e+ 0 0.0597
-    ## 10     9 <Pop>   6.20e+ 0 0.0415
-    ## 11    10 <Pop>   6.43e+ 0 0.0186
+    ##  1     0 <Pop>  -4.33e-17 1.01  
+    ##  2     1 <Pop>   1.18e+ 0 0.568 
+    ##  3     2 <Pop>   2.25e+ 0 0.564 
+    ##  4     3 <Pop>   3.72e+ 0 0.345 
+    ##  5     4 <Pop>   4.41e+ 0 0.292 
+    ##  6     5 <Pop>   4.76e+ 0 0.317 
+    ##  7     6 <Pop>   5.65e+ 0 0.230 
+    ##  8     7 <Pop>   6.30e+ 0 0.121 
+    ##  9     8 <Pop>   6.44e+ 0 0.0698
+    ## 10     9 <Pop>   6.63e+ 0 0.0381
+    ## 11    10 <Pop>   6.77e+ 0 0.0323
 
 Making A Kinship Matrix & Using for Mixed Model
 
@@ -172,37 +172,18 @@ ans <- mmer(trait~1,
 
     ## Adding additional levels of Gu in the model matrix of 'id' 
     ## iteration    LogLik     wall    cpu(sec)   restrained
-    ##     1      -49.5987   10:7:34      0           0
-    ##     2      -49.5378   10:7:34      0           0
-    ##     3      -49.5067   10:7:34      0           1
-    ##     4      -49.5   10:7:34      0           1
-    ##     5      -49.5   10:7:34      0           1
+    ##     1      -49.8108   10:16:19      0           0
+    ##     2      -49.574   10:16:19      0           1
+    ##     3      -49.5   10:16:19      0           1
+    ##     4      -49.5   10:16:19      0           1
 
 ``` r
-summary(ans)
+summary(ans)$varcomp
 ```
 
-    ## ============================================================
-    ##          Multivariate Linear Mixed Model fit by REML         
-    ## **********************  sommer 4.1  ********************** 
-    ## ============================================================
-    ##       logLik AIC      BIC Method Converge
-    ## Value  -49.5 101 103.6052     NR     TRUE
-    ## ============================================================
-    ## Variance-Covariance components:
-    ##                   VarComp VarCompSE Zratio Constraint
-    ## u:id.trait-trait   0.0000   0.17627  0.000   Positive
-    ## units.trait-trait  0.5024   0.08451  5.944   Positive
-    ## ============================================================
-    ## Fixed effects:
-    ##   Trait      Effect Estimate Std.Error t.value
-    ## 1 trait (Intercept)    6.292   0.07088   88.77
-    ## ============================================================
-    ## Groups and observations:
-    ##      trait
-    ## u:id  1100
-    ## ============================================================
-    ## Use the '$' sign to access results and parameters
+    ##                     VarComp  VarCompSE   Zratio Constraint
+    ## u:id.trait-trait  0.0000000 0.13745167 0.000000   Positive
+    ## units.trait-trait 0.4824188 0.08085857 5.966204   Positive
 
 ``` r
 library(AlphaSimR)
