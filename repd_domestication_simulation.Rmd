@@ -55,7 +55,7 @@ tidySimOutput<-tibble(Cycle=0:nCycles,
          varG=map_dbl(Sims,~var(.@gv)))
 tidySimOutput
 ```
-Making A Kinship Matrix & Using for Mixed Model
+Making Kinship Matrix (K) & Using for Mixed Model
 ```{r}
 ped <- as.data.frame(SP$pedigree) #set dataframe
 ped <- ped[,-3]
@@ -79,13 +79,28 @@ ans <- mmer(trait~1,
      rcov=~units,
      data=Y)
 
-
 summary(ans)$varcomp
-
-
-
 ```
 
+Making Genomic Relationship Matrix (A) & Using for Mixed Model
+```{r}
+library(AlphaSimR)
+gen.mat <- pullSnpGeno(offspringPop)
+library(sommer)
+A <- A.mat(gen.mat)
+
+Y <- as.data.frame(cbind(offspringPop@id,offspringPop@pheno))
+colnames(Y) <- c("id","trait")
+Y$trait <- as.numeric(Y$trait)
+
+library(sommer)
+ans <- mmer(trait~1,
+     random=~vs(id,Gu=A),
+     rcov=~units,
+     data=Y)
+
+summary(ans)$varcomp
+```
 
 
 ```{r}
