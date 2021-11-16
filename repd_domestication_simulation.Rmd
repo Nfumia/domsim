@@ -55,6 +55,7 @@ tidySimOutput<-tibble(Cycle=0:nCycles,
          varG=map_dbl(Sims,~var(.@gv)))
 tidySimOutput
 ```
+###############################################################################################################################################################
 # Making Kinship Matrix (K) & Using for Mixed Model
 ```{r}
 ped <- as.data.frame(SP$pedigree) #set dataframe
@@ -86,6 +87,7 @@ summary(ans_ped)$varcomp
 ```{r}
 library(AlphaSimR)
 gen.mat <- pullSnpGeno(offspringPop) #pull genotypes from offspringPop object
+
 library(sommer)
 A <- A.mat(gen.mat) #create A genomic relationship matrix
 
@@ -122,6 +124,7 @@ choose <-tibble(id=Y$id,
 
 ```
 
+###############################################################################################################################################################
 
 ## Run the simulation once with Genomic selection
 ```{r}
@@ -199,6 +202,8 @@ meanGplot<-ggplot(tidySimOutput,aes(x=Cycle,y=meanG)) + geom_point() + geom_line
 varGplot<-ggplot(tidySimOutput,aes(x=Cycle,y=varG)) + geom_point() + geom_line() 
 meanGplot | varGplot
 ```
+
+###############################################################################################################################################################
 ## Replicate the simulation 10 times and plot the mean and sd of simulations
 ```{r}
 library(AlphaSimR)
@@ -236,6 +241,108 @@ for(cycle in 1:nCycles){
       ###pullSnpGeno()
     ##Contribution selection (no inbreeding - preserve diversity)
       ### "optiSel" package for optimal selection
+  # make crosses 
+  offspringPop<-randCross(pop=chosenParents, 
+                          nCrosses=10,nProgeny = 10)
+  # phenotype  new offspring
+  offspringPop<-setPheno(pop = offspringPop,h2=0.5,reps=2)
+  # add new offspring to simOutput list
+  simOutput[[cycle+1]]<-offspringPop
+}
+
+# Tidy up to output
+tidySimOutput<-tibble(Cycle=0:nCycles,
+       Sims=simOutput) %>% 
+  mutate(meanG=map_dbl(Sims,~mean(.@gv)),
+         varG=map_dbl(Sims,~var(.@gv)))
+tidySimOutput
+}, simplify=FALSE)
+library(purrr)
+result <- lapply(purrr::transpose(code), function(x) do.call(cbind, x))
+
+```
+### Organize the replicated data into summary stats
+```{r}
+# Create dataframe of replicated simulation
+simRepMeanG<-rowMeans(result$meanG)
+simRepVarG<-rowMeans(result$varG)
+simRepMeanGsd<- apply(result$meanG,1, sd, na.rm = TRUE)
+simRepVarGsd<- apply(result$varG,1, sd, na.rm = TRUE)
+cycle<-c(0:nCycles)
+
+simRepData<- as.data.frame(t(rbind(cycle,simRepMeanG,simRepMeanGsd,simRepVarG,simRepVarGsd)))
+
+```
+### Plot those simulation summary stats
+```{r}
+library(patchwork)
+# Plot replicated simulation for clean plots
+meanGplot<-ggplot(simRepData,aes(x=cycle,y=simRepMeanG)) + geom_point() + geom_line() + geom_ribbon(aes(ymin=simRepMeanG-simRepMeanGsd,ymax=simRepMeanG+simRepMeanGsd),fill="grey",alpha=0.5) 
+varGplot<-ggplot(simRepData,aes(x=cycle,y=simRepVarG)) + geom_point() + geom_line() + geom_ribbon(aes(ymin=simRepVarG-simRepVarGsd,ymax=simRepVarG+simRepVarGsd),fill="grey",alpha=0.5) 
+meanGplot | varGplot
+```
+
+
+###############################################################################################################################################################
+## Replicate the genomic selection simulation 10 times and plot the mean and sd of simulations
+```{r}
+library(AlphaSimR)
+library(tidyverse)
+library(sommer)
+
+code<- replicate(10,{
+
+rm(list=ls())
+# SET-UP FOUNDER POPULATION
+founderHap <- runMacs2(nInd=100,nChr=11,segSites=100)
+# New global simulation parameters from founder haplotypes
+SP <- SimParam$new(founderHap)
+SP$restrSegSites(minQtlPerChr=10,minSnpPerChr=10,overlap=FALSE)
+SP$addTraitA(nQtlPerChr=10,mean=0,var=1) # Additive trait genetic architecture
+SP$setSexes("no") #all individuals are hermaphrodites
+SP$addSnpChip(nSnpPerChr=10) # Observed SNPs per chromosome 
+SP$setTrackPed(TRUE) #keeps pedigree information in slot SP@pedigree 
+SP$setTrackRec(TRUE) #keeps recomb. records of all individuals in slot of "SP"
+# New founder pop
+founders <- newPop(founderHap,simParam=SP)
+# Initial founder phenotypes
+founders <- setPheno(pop=founders,h2=0.5,reps=2)
+
+# loop length / number of cycles of selection
+nCycles<-10
+# very simple container for each cycles sim output
+simOutput<-list(founders)
+cycle<-1
+for(cycle in 1:nCycles){
+  cat(paste0(" C",cycle))
+  # choose the best from last cycle
+  # choose the best from last cycle with genomic selection
+      gen.mat <- pullSnpGeno(simOutput[[cycle]]) #pull genotypes from offspringPop object
+      A <- sommer::A.mat(gen.mat) #create A genomic relationship matrix
+      Y <- as.data.frame(cbind(simOutput[[cycle]]@id,simOutput[[cycle]]@pheno)) #create dataframe of traits and id for model
+      colnames(Y) <- c("id","trait") #rename columns something meaningful
+      Y$trait <- as.numeric(Y$trait) #make response (trait) numeric
+      #Y <- Y %>%
+      #    mutate(trait =  replace(trait, sample(row_number(),  
+      #           size = ceiling(0.3 * n()), replace = FALSE), NA) )
+
+      #run univariate mixed model with sommer 
+      ##specifying random covariates of id and relationship
+      ##specifying covariance structure by units
+      ans_gs <- mmer(trait~1,
+           random=~vs(id,Gu=A),
+           rcov=~units,
+            data=Y) 
+      #summary(ans_gs)$varcomp #check variance composition
+      #plot(ans_gs) #check normality with visual
+      gebv.pb <- as.data.frame(ans_gs$U) #pull genomic estimated breeding values from mixed model
+      rownames(gebv.pb) <- factor(Y$id,levels = rownames(A)) #place id as rownames of gebv
+      #how to organize by descending gebv and select top (slice(n:n)) individuals
+      chosenParents <-tibble(id=Y$id, 
+            gebv=gebv.pb$trait) %>% 
+            arrange(desc(gebv.pb$trait)) %>% 
+            slice(1:5)
+      chosenParents <- simOutput[[cycle]][chosenParents$id] #subset genomic selected chosenParents from POP to be used in cross
   # make crosses 
   offspringPop<-randCross(pop=chosenParents, 
                           nCrosses=10,nProgeny = 10)
