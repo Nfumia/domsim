@@ -147,43 +147,49 @@ founders <- newPop(founderHap,simParam=SP)
 # Initial founder phenotypes
 founders <- setPheno(pop=founders,h2=0.5,reps=2)
 
-# loop length / number of cycles of selection
-nCycles<-10
-# very simple container for each cycles sim output
-simOutput<-list(founders)
-cycle<-1
+## Set Breeding and Selection Parameters
+nCycles<-10 # loop length / number of cycles of selection
+nParents<-5 # number of parents to select and cross
+nCrosses<-5 # number of crosses to make per parent
+nProgeny<-10 # number of progeny taken from each parent
+
+
+
+simOutput<-list(founders) # simple container for each cycles' simulation output
+
+
 for(cycle in 1:nCycles){
   cat(paste0(" C",cycle))
+  
+  allCyclesOutput<-purrr::reduce(simOutput,`c`) # concatenate the list of sims
+  
   # choose the best from last cycle with genomic selection
-      gen.mat <- pullSnpGeno(simOutput[[cycle]]) #pull genotypes from offspringPop object
+      gen.mat <- pullSnpGeno(allCyclesOutput) #pull genotypes from simulation object containing all generations to current nCycle of loop
       A <- sommer::A.mat(gen.mat) #create A genomic relationship matrix
-      Y <- as.data.frame(cbind(simOutput[[cycle]]@id,simOutput[[cycle]]@pheno)) #create dataframe of traits and id for model
-      colnames(Y) <- c("id","trait") #rename columns something meaningful
-      Y$trait <- as.numeric(Y$trait) #make response (trait) numeric
-      #Y <- Y %>%
-      #    mutate(trait =  replace(trait, sample(row_number(),  
-      #           size = ceiling(0.3 * n()), replace = FALSE), NA) )
-
+      Y <- tibble(id=allCyclesOutput@id, #create dataframe of traits and id for model
+              trait=as.numeric(allCyclesOutput@pheno)) %>%
+              dplyr::mutate(id=factor(id,levels=rownames(A))) # make "id" a factor with levels = rownames(A) to ensure prediction of all genotyped indivs
+      
       #run univariate mixed model with sommer 
-      ##specifying random covariates of id and relationship
-      ##specifying covariance structure by units
       ans_gs <- mmer(trait~1,
-           random=~vs(id,Gu=A),
-           rcov=~units,
+           random=~vs(id,Gu=A), ##specifying random covariates of id and relationship
+           rcov=~units, ##specifying covariance structure by units
             data=Y) 
+      
       #summary(ans_gs)$varcomp #check variance composition
       #plot(ans_gs) #check normality with visual
-      gebv.pb <- as.data.frame(ans_gs$U) #pull genomic estimated breeding values from mixed model
-      rownames(gebv.pb) <- factor(Y$id,levels = rownames(A)) #place id as rownames of gebv
-      #how to organize by descending gebv and select top (slice(n:n)) individuals
-      chosenParents <-tibble(id=Y$id, 
-            gebv=gebv.pb$trait) %>% 
-            arrange(desc(gebv.pb$trait)) %>% 
-            slice(1:5)
-      chosenParents <- simOutput[[cycle]][chosenParents$id] #subset genomic selected chosenParents from POP to be used in cross
+      gebv <- tibble(id=names(ans_gs$U$`u:id`$trait), # make a tibble of the GEBV from the mixed model
+                 gebv=as.numeric(ans_gs$U$`u:id`$trait)) 
+      
+      #how to organize by descending gebv and select top (slice(n:nParents)) individuals
+      chosenParents <- gebv %>% 
+            arrange(desc(gebv)) %>% 
+            slice(1:nParents) # nParents set outside of simulation for number of parents to use as maternal for next generation
+      chosenParents <- allCyclesOutput[chosenParents$id] #subset genomic selected chosenParents from POP to be used in cross
   # make crosses 
-  offspringPop<-randCross(pop=chosenParents, 
-                          nCrosses=5,nProgeny = 10)
+  offspringPop<-randCross(pop=chosenParents, # selected parents to be used
+                          nCrosses=nCrosses, # number of crosses to make per parent
+                          nProgeny = nProgeny) # number of progeny taken from each selected parent
   # phenotype  new offspring
   offspringPop<-setPheno(pop = offspringPop,h2=0.5,reps=2)
   # add new offspring to simOutput list
@@ -308,44 +314,46 @@ founders <- newPop(founderHap,simParam=SP)
 # Initial founder phenotypes
 founders <- setPheno(pop=founders,h2=0.5,reps=2)
 
-# loop length / number of cycles of selection
-nCycles<-10
-# very simple container for each cycles sim output
-simOutput<-list(founders)
-cycle<-1
+## Set Breeding and Selection Parameters
+nCycles<-10 # loop length / number of cycles of selection
+nParents<-5 # number of parents to select and cross
+nCrosses<-5 # number of crosses to make per parent
+nProgeny<-10 # number of progeny taken from each parent
+
+simOutput<-list(founders) # simple container for each cycles' simulation output
+
 for(cycle in 1:nCycles){
   cat(paste0(" C",cycle))
-  # choose the best from last cycle
+  
+  allCyclesOutput<-purrr::reduce(simOutput,`c`) # concatenate the list of sims
+  
   # choose the best from last cycle with genomic selection
-      gen.mat <- pullSnpGeno(simOutput[[cycle]]) #pull genotypes from offspringPop object
+      gen.mat <- pullSnpGeno(allCyclesOutput) #pull genotypes from simulation object containing all generations to current nCycle of loop
       A <- sommer::A.mat(gen.mat) #create A genomic relationship matrix
-      Y <- as.data.frame(cbind(simOutput[[cycle]]@id,simOutput[[cycle]]@pheno)) #create dataframe of traits and id for model
-      colnames(Y) <- c("id","trait") #rename columns something meaningful
-      Y$trait <- as.numeric(Y$trait) #make response (trait) numeric
-      #Y <- Y %>%
-      #    mutate(trait =  replace(trait, sample(row_number(),  
-      #           size = ceiling(0.3 * n()), replace = FALSE), NA) )
-
+      Y <- tibble(id=allCyclesOutput@id, #create dataframe of traits and id for model
+              trait=as.numeric(allCyclesOutput@pheno)) %>%
+              dplyr::mutate(id=factor(id,levels=rownames(A))) # make "id" a factor with levels = rownames(A) to ensure prediction of all genotyped indivs
+      
       #run univariate mixed model with sommer 
-      ##specifying random covariates of id and relationship
-      ##specifying covariance structure by units
       ans_gs <- mmer(trait~1,
-           random=~vs(id,Gu=A),
-           rcov=~units,
+           random=~vs(id,Gu=A), ##specifying random covariates of id and relationship
+           rcov=~units, ##specifying covariance structure by units
             data=Y) 
+      
       #summary(ans_gs)$varcomp #check variance composition
       #plot(ans_gs) #check normality with visual
-      gebv.pb <- as.data.frame(ans_gs$U) #pull genomic estimated breeding values from mixed model
-      rownames(gebv.pb) <- factor(Y$id,levels = rownames(A)) #place id as rownames of gebv
-      #how to organize by descending gebv and select top (slice(n:n)) individuals
-      chosenParents <-tibble(id=Y$id, 
-            gebv=gebv.pb$trait) %>% 
-            arrange(desc(gebv.pb$trait)) %>% 
-            slice(1:5)
-      chosenParents <- simOutput[[cycle]][chosenParents$id] #subset genomic selected chosenParents from POP to be used in cross
+      gebv <- tibble(id=names(ans_gs$U$`u:id`$trait), # make a tibble of the GEBV from the mixed model
+                 gebv=as.numeric(ans_gs$U$`u:id`$trait)) 
+      
+      #how to organize by descending gebv and select top (slice(n:nParents)) individuals
+      chosenParents <- gebv %>% 
+            arrange(desc(gebv)) %>% 
+            slice(1:nParents) # nParents set outside of simulation for number of parents to use as maternal for next generation
+      chosenParents <- allCyclesOutput[chosenParents$id] #subset genomic selected chosenParents from POP to be used in cross
   # make crosses 
-  offspringPop<-randCross(pop=chosenParents, 
-                          nCrosses=10,nProgeny = 10)
+  offspringPop<-randCross(pop=chosenParents, # selected parents to be used
+                          nCrosses=nCrosses, # number of crosses to make per parent
+                          nProgeny = nProgeny) # number of progeny taken from each selected parent
   # phenotype  new offspring
   offspringPop<-setPheno(pop = offspringPop,h2=0.5,reps=2)
   # add new offspring to simOutput list
